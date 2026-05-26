@@ -1,0 +1,96 @@
+@import 'vis-timeline/styles/vis-timeline-graph2d.min.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0d1117;
+  color: #e6edf3;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* vis-timeline dark theme overrides */
+.vis-timeline {
+  border: 1px solid #30363d !important;
+  background-color: #0d1117 !important;
+  border-radius: 8px;
+}
+.vis-time-axis .vis-text {
+  color: #8b949e !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+}
+.vis-time-axis .vis-grid.vis-minor {
+  border-color: #21262d !important;
+}
+.vis-time-axis .vis-grid.vis-major {
+  border-color: #30363d !important;
+}
+.vis-label {
+  color: #e6edf3 !important;
+  border-color: #30363d !important;
+  background-color: #161b22 !important;
+  padding: 4px 8px !important;
+  font-size: 11px !important;
+}
+.vis-group {
+  border-color: #21262d !important;
+  background-color: #0d1117 !important;
+}
+.vis-item {
+  border-width: 1px !important;
+  cursor: pointer;
+}
+.vis-item.vis-selected {
+  border-width: 2px !important;
+  filter: brightness(1.4);
+}
+.vis-item .vis-item-content {
+  padding: 0 !important;
+}
+.vis-tooltip {
+  background-color: #161b22 !important;
+  border: 1px solid #30363d !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  color: #e6edf3 !important;
+  font-size: 12px !important;
+  max-width: 280px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
+}
+.vis-panel.vis-center {
+  border-color: #30363d !important;
+}
+.vis-panel.vis-left {
+  border-color: #30363d !important;
+}
+.vis-current-time {
+  background-color: #58a6ff40 !important;
+  width: 2px !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0d1117; }
+::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #484f58; }
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Event list table */
+.event-row:hover {
+  background-color: rgba(255,255,255,0.03);
+}
