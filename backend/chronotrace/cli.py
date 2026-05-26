@@ -37,13 +37,35 @@ from chronotrace.models.event import NormalizedEvent, EventSource
 
 __version__ = "1.0.0"
 
-BANNER = r"""
+# Big ANSI Shadow banner — same style nmap/sqlmap/metasploit use.
+# Requires terminal width ≥ 96 columns; falls back to the small slant banner otherwise.
+BANNER_LARGE = r"""
+ ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ██╗ ██████╗ ████████╗██████╗  █████╗  ██████╗███████╗
+██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝
+██║     ███████║██████╔╝██║   ██║██╔██╗ ██║██║   ██║   ██║   ██████╔╝███████║██║     █████╗
+██║     ██╔══██║██╔══██╗██║   ██║██║╚██╗██║██║   ██║   ██║   ██╔══██╗██╔══██║██║     ██╔══╝
+╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚████║╚██████╔╝   ██║   ██║  ██║██║  ██║╚██████╗███████╗
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝
+"""
+
+BANNER_SMALL = r"""
    ____ _                       _____
   / ___| |__  _ __ ___  _ __   |_   _| __ __ _  ___ ___
  | |   | '_ \| '__/ _ \| '_ \    | || '__/ _` |/ __/ _ \
  | |___| | | | | | (_) | | | |   | || | | (_| | (_|  __/
   \____|_| |_|_|  \___/|_| |_|   |_||_|  \__,_|\___\___|
 """
+
+
+def render_banner(console: Console) -> None:
+    """Pick big or small banner based on terminal width, render with color."""
+    art = BANNER_LARGE if console.width >= 96 else BANNER_SMALL
+    # Cyan banner, red tagline — same palette family as Hydra / sqlmap
+    console.print(f"[bold cyan]{art}[/]")
+    tagline = "         Domain History  ·  Certificate Transparency  ·  Active Recon"
+    console.print(f"[bold red]{tagline}[/]")
+    console.print(f"        [dim]v{__version__}  by Dulara Abhiranda  ·  github.com/DularaAbhiranda/ChronoTrace[/]")
+    console.print()
 
 PASSIVE_SOURCES = ["wayback", "crt_sh", "rdap", "dns"]
 ACTIVE_MODULES = {
@@ -430,9 +452,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if not args.quiet:
-        console.print(f"[cyan]{BANNER}[/]")
-        console.print(f"        [bold]v{__version__}[/]  |  Domain History & OSINT Timeline")
-        console.print()
+        render_banner(console)
 
     passive, active = resolve_modules(args)
     if not passive and not active:
