@@ -45,6 +45,8 @@ Thumbs.db
 build/
 dist/
 *.egg
+.booklet-build/node_modules/
+.booklet-build/package-lock.json
 
 # --- Test outputs ---
 .coverage
