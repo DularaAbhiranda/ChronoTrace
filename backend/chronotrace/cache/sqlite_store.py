@@ -2,7 +2,7 @@ import aiosqlite
 import json
 import os
 from typing import Optional, List
-from app.models.event import ScanJob, NormalizedEvent
+from chronotrace.models.event import ScanJob, NormalizedEvent
 
 DB_PATH = os.getenv("DB_PATH", "chronotrace.db")
 

@@ -1,7 +1,7 @@
 import httpx
 import hashlib
 from typing import List
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 
 def _get_event_date(events_list: list, event_action: str) -> str:

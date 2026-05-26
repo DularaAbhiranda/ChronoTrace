@@ -8,8 +8,8 @@ import logging
 import socket
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
-from app.connectors.active.port_scan_full import _service_probe, _tls_probe_sync
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.connectors.active.port_scan_full import _service_probe, _tls_probe_sync
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 log = logging.getLogger(__name__)
 

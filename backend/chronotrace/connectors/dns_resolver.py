@@ -3,7 +3,7 @@ import dns.exception
 import hashlib
 from datetime import datetime, timezone
 from typing import List
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 RECORD_TYPES = ["A", "AAAA", "MX", "NS", "TXT", "CNAME"]
 

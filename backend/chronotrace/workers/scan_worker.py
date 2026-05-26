@@ -4,11 +4,11 @@ import json
 import httpx
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from app.models.event import ScanJob, NormalizedEvent, ScanRequest
-from app.cache import sqlite_store
-from app.connectors import wayback, crt_sh, rdap, dns_resolver
-from app.connectors.enrichment import shodan, virustotal, hibp
-from app.connectors.active import (
+from chronotrace.models.event import ScanJob, NormalizedEvent, ScanRequest
+from chronotrace.cache import sqlite_store
+from chronotrace.connectors import wayback, crt_sh, rdap, dns_resolver
+from chronotrace.connectors.enrichment import shodan, virustotal, hibp
+from chronotrace.connectors.active import (
     port_scan, port_scan_full, http_fingerprint, tls_inspect, well_known,
     dns_axfr, dir_probe,
 )

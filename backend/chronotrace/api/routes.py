@@ -5,9 +5,9 @@ import io
 from typing import Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
-from app.models.event import ScanRequest, ExportRequest
-from app.workers import scan_worker
-from app.cache import sqlite_store
+from chronotrace.models.event import ScanRequest, ExportRequest
+from chronotrace.workers import scan_worker
+from chronotrace.cache import sqlite_store
 
 router = APIRouter()
 

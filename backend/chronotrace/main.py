@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from app.cache import sqlite_store
-from app.api.routes import router
+from chronotrace.cache import sqlite_store
+from chronotrace.api.routes import router
 
 # Surface connector logging — INFO and above
 logging.basicConfig(

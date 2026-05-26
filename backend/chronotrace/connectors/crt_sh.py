@@ -3,7 +3,7 @@ import httpx
 import hashlib
 import logging
 from typing import List
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 log = logging.getLogger(__name__)
 
@@ -98,5 +98,5 @@ async def fetch(domain: str, client: httpx.AsyncClient) -> List[NormalizedEvent]
                     confidence=Confidence.EXACT,
                 ))
     except Exception as e:
-        log.exception("crt_sh.fetch failed for %s: %s", domain, e)
+        log.error("crt_sh.fetch failed for %s: %s", domain, e)
     return events

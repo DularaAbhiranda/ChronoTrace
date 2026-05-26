@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timezone
 from typing import List, Dict
 import httpx
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 log = logging.getLogger(__name__)
 

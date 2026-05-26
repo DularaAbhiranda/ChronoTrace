@@ -12,7 +12,7 @@ import dns.query
 import dns.zone
 import dns.resolver
 import dns.exception
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 log = logging.getLogger(__name__)
 

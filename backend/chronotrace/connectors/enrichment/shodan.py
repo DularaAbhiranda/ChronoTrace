@@ -1,7 +1,7 @@
 import httpx
 import hashlib
 from typing import List
-from app.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
 
 
 async def fetch(domain: str, client: httpx.AsyncClient, api_key: str) -> List[NormalizedEvent]:

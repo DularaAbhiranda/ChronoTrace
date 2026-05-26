@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chronotrace"
+version = "1.0.0"
+description = "Domain history & OSINT timeline tool — passive aggregation (Wayback, crt.sh, RDAP, DNS) + opt-in active probing (port scan, AXFR, dir probe, TLS, HTTP fingerprint). Pip-installable CLI like nmap/hydra. See https://github.com/DularaAbhiranda/ChronoTrace for full docs."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Dulara Abhiranda" }]
+keywords = ["osint", "recon", "pentest", "wayback", "crt.sh", "dns", "port-scan", "kali"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+]
+dependencies = [
+    "httpx>=0.27",
+    "dnspython>=2.6",
+    "pydantic>=2.9",
+    "rich>=13.7",
+    "cryptography>=43",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "aiosqlite>=0.20",
+    "python-multipart>=0.0.12",
+    "python-dotenv>=1.0",
+]
+dev = [
+    "pytest>=8",
+    "ruff>=0.5",
+]
+
+# This is the CLI entry point — when you `pip install -e .` you get a `chronotrace` command on $PATH
+[project.scripts]
+chronotrace = "chronotrace.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/DularaAbhiranda/ChronoTrace"
+Repository = "https://github.com/DularaAbhiranda/ChronoTrace.git"
+Issues = "https://github.com/DularaAbhiranda/ChronoTrace/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["chronotrace*"]
+exclude = ["tests*", "venv*"]
