@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronoTrace // OSINT Domain Timeline</title>
+  <meta name="description" content="Reconstruct any domain's complete digital history. Aggregate Wayback Machine, Certificate Transparency, RDAP, DNS and active recon modules into one correlated OSINT timeline." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=VT323&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Reset & Tokens ──────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    :root {
+      --bg:          #07090a;
+      --bg-elev:     #0d1110;
+      --bg-card:     #0a0e0d;
+      --fg:          #c8ffd0;
+      --fg-dim:      #6b8a72;
+      --fg-mute:     #3a5a42;
+      --green:       #00ff66;
+      --green-dim:   #008f3a;
+      --amber:       #ffb700;
+      --red:         #ff4444;
+      --cyan:        #00d9ff;
+      --blue:        #58a6ff;
+      --border:      #1a2620;
+      --border-hi:   #2d4a3a;
+      --mono:        'JetBrains Mono', 'Consolas', monospace;
+      --display:     'VT323', 'Consolas', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+      text-shadow: 0 0 1px rgba(0, 255, 102, 0.25);
+      animation: flicker 0.15s infinite;
+    }
+
+    @keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.985; } }
+    @keyframes blink   { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+    @keyframes fade-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+
+    /* ─── CRT overlay ─────────────────────────────────────── */
+    #scanlines {
+      position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 2px,
+        rgba(0,0,0,0.12) 3px, transparent 4px
+      );
+    }
+    #vignette {
+      position: fixed; inset: 0; pointer-events: none; z-index: 9997;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,30,15,0.45) 100%);
+    }
+
+    /* ─── Scrollbar ───────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: var(--bg-elev); }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--green-dim); }
+    ::selection { background: var(--green); color: var(--bg); text-shadow: none; }
+
+    /* ─── Nav ─────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(7,9,10,0.93);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 24px; height: 54px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; font-family: var(--display); font-size: 22px;
+      color: var(--green);
+    }
+    .logo-blink { animation: blink 1s steps(2) infinite; }
+    .logo-ver {
+      font-family: var(--mono); font-size: 10px; color: var(--fg-dim);
+      border: 1px solid var(--border-hi); padding: 2px 6px; margin-left: 4px;
+    }
+    .nav-links { display: flex; gap: 20px; font-size: 12px; list-style: none; }
+    .nav-links a { color: var(--fg-dim); text-decoration: none; transition: color .2s; }
+    .nav-links a:hover { color: var(--green); text-shadow: 0 0 6px rgba(0,255,102,.5); }
+    .nav-cta {
+      padding: 6px 16px; border: 1px solid var(--green);
+      color: var(--green); font-family: var(--mono); font-size: 12px;
+      background: transparent; cursor: pointer; text-decoration: none;
+      transition: all .2s;
+    }
+    .nav-cta:hover { background: var(--green); color: var(--bg); box-shadow: 0 0 20px rgba(0,255,102,.4); }
+
+    /* ─── Hero ────────────────────────────────────────────── */
+    .hero {
+      max-width: 1200px; margin: 0 auto;
+      padding: 70px 24px 50px; text-align: center;
+    }
+    .ascii-art {
+      color: var(--green);
+      font-family: var(--mono); font-size: 9.5px; line-height: 1.1;
+      white-space: pre; overflow-x: auto; margin: 0 auto 28px;
+      text-shadow: 0 0 8px rgba(0,255,102,.45);
+      filter: drop-shadow(0 0 3px rgba(0,255,102,.25));
+      cursor: default;
+      transition: transform 0.05s;
+    }
+    @media (max-width: 900px) { .ascii-art { font-size: 6.5px; } }
+    @media (max-width: 600px) { .ascii-art { font-size: 4.5px; } }
+
+    .hero-tag {
+      font-family: var(--display); font-size: 26px; color: var(--amber);
+      margin-bottom: 32px; letter-spacing: 1px;
+      text-shadow: 0 0 8px rgba(255,183,0,.45);
+    }
+    .hero-prompt {
+      display: inline-block; background: var(--bg-elev);
+      border: 1px solid var(--border-hi); padding: 13px 20px; margin-bottom: 32px;
+      font-size: 15px; min-width: 360px; text-align: left;
+      box-shadow: 0 0 18px rgba(0,255,102,.1);
+    }
+    .p-sign { color: var(--green); font-weight: 700; }
+    #typewriter { color: var(--fg); }
+    .cur { color: var(--green); animation: blink 1s steps(2) infinite; }
+    .hero-desc {
+      max-width: 700px; margin: 0 auto 36px;
+      color: var(--fg-dim); font-size: 13px; line-height: 1.75;
+    }
+    .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
+    .btn {
+      font-family: var(--mono); font-size: 13px; padding: 11px 22px;
+      border: 1px solid; text-decoration: none; cursor: pointer;
+      transition: all .2s; letter-spacing: .3px;
+    }
+    .btn-solid {
+      background: var(--green); color: var(--bg); border-color: var(--green);
+      font-weight: 700; box-shadow: 0 0 18px rgba(0,255,102,.3);
+    }
+    .btn-solid:hover { background: var(--bg); color: var(--green); box-shadow: 0 0 28px rgba(0,255,102,.7); }
+    .btn-outline { background: transparent; color: var(--fg); border-color: var(--border-hi); }
+    .btn-outline:hover { border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(0,255,102,.2); }
+
+    .hero-badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .badge {
+      font-size: 10px; color: var(--fg-dim); border: 1px solid var(--border-hi);
+      padding: 3px 9px;
+    }
+
+    /* ─── Divider ─────────────────────────────────────────── */
+    .section-divider {
+      border: none; border-top: 1px solid var(--border);
+      max-width: 1200px; margin: 0 auto;
+    }
+
+    /* ─── Section shell ───────────────────────────────────── */
+    .section { max-width: 1200px; margin: 0 auto; padding: 72px 24px; }
+    .sec-title {
+      font-family: var(--display); font-size: 34px; color: var(--green);
+      margin-bottom: 10px; letter-spacing: 1px;
+      text-shadow: 0 0 7px rgba(0,255,102,.35);
+    }
+    .sec-lede {
+      color: var(--fg-dim); font-size: 13px; margin-bottom: 28px;
+      max-width: 700px;
+    }
+    code, .mono {
+      color: var(--amber); background: var(--bg-elev);
+      padding: 1px 6px; font-size: 12px; border: 1px solid var(--border);
+    }
+
+    /* ─── Terminal demo ───────────────────────────────────── */
+    .terminal {
+      background: #050807; border: 1px solid var(--border-hi);
+      border-radius: 6px; overflow: hidden;
+      box-shadow: 0 0 28px rgba(0,255,102,.12), inset 0 0 60px rgba(0,20,10,.4);
+    }
+    .term-chrome {
+      background: linear-gradient(to bottom, #1a2118, #10160e);
+      padding: 8px 14px; display: flex; align-items: center; gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dots { display: flex; gap: 7px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+    .dot.r { background: #ff5555; }
+    .dot.y { background: #ffb700; }
+    .dot.g { background: #00ff66; }
+    .term-ttl { flex: 1; text-align: center; font-size: 11px; color: var(--fg-dim); }
+    .replay-btn {
+      background: transparent; border: 1px solid var(--border-hi);
+      color: var(--fg-dim); font-family: var(--mono); font-size: 11px;
+      padding: 3px 10px; cursor: pointer; transition: color .2s, border-color .2s;
+    }
+    .replay-btn:hover { color: var(--green); border-color: var(--green); }
+    .term-body {
+      padding: 18px 22px; font-family: var(--mono); font-size: 12.5px;
+      min-height: 440px; max-height: 540px;
+      overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+      line-height: 1.5;
+    }
+    .term-body .ok    { color: var(--green); }
+    .term-body .warn  { color: var(--amber); }
+    .term-body .err   { color: var(--red);   }
+    .term-body .info  { color: var(--fg-dim); }
+    .term-body .hi    { color: var(--fg);    }
+    .term-body .cy    { color: var(--cyan);  }
+    .term-body .banner{ color: var(--green); text-shadow: 0 0 5px rgba(0,255,102,.4); }
+    .term-body .tcur::after { content: '▌'; color: var(--green); animation: blink 1s steps(2) infinite; }
+
+    /* ─── Features ────────────────────────────────────────── */
+    .feat-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px; margin-top: 24px;
+    }
+    .feat {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 22px; transition: border-color .2s, box-shadow .2s;
+      position: relative; overflow: hidden;
+    }
+    .feat::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,255,102,.3), transparent);
+      opacity: 0; transition: opacity .3s;
+    }
+    .feat:hover { border-color: var(--green-dim); box-shadow: 0 0 18px rgba(0,255,102,.08); }
+    .feat:hover::before { opacity: 1; }
+    .feat-tag {
+      font-family: var(--mono); color: var(--green); font-size: 11px;
+      font-weight: 700; margin-bottom: 8px; letter-spacing: 1px;
+    }
+    .feat h3 { font-family: var(--display); font-size: 21px; color: var(--fg); margin-bottom: 10px; }
+    .feat p  { color: var(--fg-dim); font-size: 12.5px; line-height: 1.65; margin-bottom: 14px; }
+    .feat-list { list-style: none; font-size: 12px; color: var(--fg-dim); }
+    .feat-list li { padding: 2px 0; }
+    .feat-list li::first-letter { color: var(--green); font-weight: 700; }
+
+    /* ─── Sources ─────────────────────────────────────────── */
+    .src-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px; margin-top: 24px;
+    }
+    .src {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 16px 18px; transition: border-color .2s;
+    }
+    .src:hover { border-color: var(--border-hi); }
+    .src-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .src-ico  { font-size: 17px; }
+    .src-name { font-size: 12px; font-weight: 600; color: var(--fg); }
+    .src-bdg  {
+      margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: .5px;
+      padding: 2px 7px; border: 1px solid;
+    }
+    .free { color: var(--green); border-color: rgba(0,255,102,.3); background: rgba(0,255,102,.07); }
+    .opt  { color: var(--amber); border-color: rgba(255,183,0,.3);  background: rgba(255,183,0,.07);  }
+    .src p { font-size: 11.5px; color: var(--fg-dim); line-height: 1.5; }
+
+    /* ─── Web UI section ──────────────────────────────────── */
+    .ui-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px; margin-top: 24px;
+    }
+    .ui-card {
+      background: var(--bg-card); border: 1px solid var(--border); padding: 18px;
+      transition: border-color .2s;
+    }
+    .ui-card:hover { border-color: rgba(0,217,255,.3); }
+    .ui-num  { font-family: var(--display); font-size: 30px; color: var(--cyan); margin-bottom: 6px; }
+    .ui-card h4 { font-family: var(--display); font-size: 20px; color: var(--fg); margin-bottom: 8px; }
+    .ui-card p  { font-size: 12px; color: var(--fg-dim); line-height: 1.6; }
+
+    /* ─── Install ─────────────────────────────────────────── */
+    .install-blk { background: var(--bg-card); border: 1px solid var(--border-hi); margin-bottom: 18px; }
+    .install-hdr {
+      background: var(--bg-elev); padding: 8px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .install-os { font-size: 10px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .copy-btn {
+      background: transparent; border: 1px solid var(--border-hi);
+      color: var(--fg-dim); font-family: var(--mono); font-size: 10px;
+      padding: 3px 10px; cursor: pointer; transition: all .2s;
+    }
+    .copy-btn:hover { color: var(--green); border-color: var(--green); }
+    .copy-btn.ok    { color: var(--green); border-color: var(--green); }
+    .install-code {
+      padding: 16px 20px; font-family: var(--mono); font-size: 12.5px;
+      line-height: 1.8; color: var(--fg); overflow-x: auto;
+    }
+    .install-code .p  { color: var(--green); font-weight: 700; }
+    .install-code .cm { color: var(--fg-mute); font-style: italic; }
+    .install-code .out{ color: var(--amber); }
+
+    /* ─── Recipes ─────────────────────────────────────────── */
+    .rec-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 16px; margin-top: 24px;
+    }
+    .rec {
+      background: var(--bg-card); border: 1px solid var(--border);
+      padding: 20px; text-decoration: none; color: var(--fg);
+      transition: all .2s; display: block; position: relative;
+    }
+    .rec:hover { border-color: var(--green); transform: translateY(-2px); box-shadow: 0 4px 18px rgba(0,255,102,.12); }
+    .rec-n { font-family: var(--display); font-size: 22px; color: var(--green-dim); position: absolute; top: 14px; right: 16px; }
+    .rec h4 { font-family: var(--display); font-size: 21px; color: var(--amber); margin-bottom: 10px; }
+    .rec code {
+      display: block; background: var(--bg); padding: 7px 10px; font-size: 11px;
+      color: var(--green); border: 1px solid var(--border); margin: 8px 0 10px; overflow-x: auto; white-space: nowrap;
+    }
+    .rec p { color: var(--fg-dim); font-size: 12px; line-height: 1.5; }
+
+    /* ─── Stats ───────────────────────────────────────────── */
+    .stats-row {
+      background: var(--bg-elev); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 56px 24px;
+    }
+    .stats-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 28px; text-align: center;
+    }
+    .st-n {
+      font-family: var(--display); font-size: 46px; color: var(--green);
+      display: block; text-shadow: 0 0 10px rgba(0,255,102,.45);
+    }
+    .st-l { font-size: 10px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 4px; display: block; }
+
+    /* ─── Ethics ──────────────────────────────────────────── */
+    .ethics-card {
+      background: var(--bg-card); border: 1px solid var(--amber); border-left: 4px solid var(--amber);
+      padding: 22px 26px; color: var(--fg-dim); font-size: 13px; line-height: 1.7;
+    }
+    .ethics-card strong { color: var(--amber); }
+    .ethics-note {
+      margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border-hi);
+      color: var(--amber); font-size: 12px;
+    }
+
+    /* ─── Footer ──────────────────────────────────────────── */
+    footer { background: var(--bg-elev); border-top: 1px solid var(--border); padding: 48px 24px 28px; }
+    .footer-grid {
+      max-width: 1200px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 36px;
+    }
+    .footer-grid h5 { font-family: var(--display); font-size: 18px; color: var(--green); margin-bottom: 10px; }
+    .footer-grid p  { color: var(--fg-dim); font-size: 12px; line-height: 1.8; }
+    .footer-grid a  { color: var(--fg); text-decoration: none; transition: color .2s; }
+    .footer-grid a:hover { color: var(--green); }
+    .footer-bottom {
+      max-width: 1200px; margin: 24px auto 0; padding-top: 18px;
+      border-top: 1px dashed var(--border);
+      display: flex; gap: 10px; justify-content: center; align-items: center;
+      font-size: 10px; color: var(--fg-mute); flex-wrap: wrap;
+    }
+
+    /* ─── Responsive ──────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .nav-links { gap: 14px; font-size: 11px; }
+      .nav-links li:nth-child(3), .nav-links li:nth-child(4) { display: none; }
+      .hero-prompt { min-width: 0; width: 100%; }
+      .hero-tag { font-size: 20px; }
+      .section { padding: 50px 16px; }
+    }
+    @media (max-width: 480px) {
+      .nav-links li:nth-child(2) { display: none; }
+      .hero { padding-top: 36px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- CRT overlay layers -->
+<div id="scanlines" aria-hidden="true"></div>
+<div id="vignette"  aria-hidden="true"></div>
+
+<!-- ── Nav ──────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a href="#top" class="logo">
+      <span class="logo-blink">▌</span>
+      <span>ChronoTrace</span>
+      <span class="logo-ver">v1.0</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#demo">demo</a></li>
+      <li><a href="#features">features</a></li>
+      <li><a href="#sources">sources</a></li>
+      <li><a href="#install">install</a></li>
+      <li><a href="https://github.com/DularaAbhiranda/ChronoTrace" target="_blank" rel="noopener">github →</a></li>
+      <li><a href="#" class="nav-cta">[ launch app ]</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────── -->
+<header id="top" class="hero">
+  <pre class="ascii-art" aria-label="ChronoTrace">
+ ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ██╗ ██████╗ ████████╗██████╗  █████╗  ██████╗███████╗
+██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝
+██║     ███████║██████╔╝██║   ██║██╔██╗ ██║██║   ██║   ██║   ██████╔╝███████║██║     █████╗
+██║     ██╔══██║██╔══██╗██║   ██║██║╚██╗██║██║   ██║   ██║   ██╔══██╗██╔══██║██║     ██╔══╝
+╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚████║╚██████╔╝   ██║   ██║  ██║██║  ██║╚██████╗███████╗
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝</pre>
+
+  <p class="hero-tag">&gt; Domain History · Certificate Transparency · Active Recon</p>
+
+  <div class="hero-prompt">
+    <span class="p-sign">$&nbsp;</span><span id="typewriter"></span><span class="cur">▌</span>
+  </div>
+
+  <p class="hero-desc">
+    Aggregate Wayback Machine snapshots, crt.sh Certificate Transparency logs, RDAP registration data,
+    live DNS, and seven opt-in active recon modules into one correlated chronological OSINT timeline.
+    Available as a pip-installable CLI and a full React web interface.
+  </p>
+
+  <div class="hero-cta">
+    <a href="#install" class="btn btn-solid">[ get started ]</a>
+    <a href="#demo"    class="btn btn-outline">[ watch demo ]</a>
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace" target="_blank" rel="noopener" class="btn btn-outline">[ source ↗ ]</a>
+  </div>
+
+  <div class="hero-badges">
+    <span class="badge">Python 3.10+</span>
+    <span class="badge">React + TypeScript</span>
+    <span class="badge">MIT license</span>
+    <span class="badge">Kali · Ubuntu · macOS · Windows</span>
+    <span class="badge">11 data sources</span>
+  </div>
+</header>
+
+<!-- ── Stats ─────────────────────────────────────────────── -->
+<div class="stats-row">
+  <div class="stats-inner">
+    <div><span class="st-n">11</span><span class="st-l">data sources</span></div>
+    <div><span class="st-n">7</span><span class="st-l">active modules</span></div>
+    <div><span class="st-n">65535</span><span class="st-l">ports scannable</span></div>
+    <div><span class="st-n">~90s</span><span class="st-l">passive scan time</span></div>
+    <div><span class="st-n">$0</span><span class="st-l">cost to start</span></div>
+    <div><span class="st-n">2</span><span class="st-l">interfaces</span></div>
+  </div>
+</div>
+
+<!-- ── Terminal Demo ─────────────────────────────────────── -->
+<section id="demo" class="section">
+  <h2 class="sec-title">// LIVE TERMINAL DEMO</h2>
+  <p class="sec-lede">
+    A looped recording of <code>chronotrace example.com --active -y</code> — real scan output,
+    real timing. Watch source connectors complete in parallel, then review the final summary table.
+  </p>
+
+  <div class="terminal">
+    <div class="term-chrome">
+      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+      <div class="term-ttl">kali@chronotrace ~ — zsh</div>
+      <button id="replay-btn" class="replay-btn" title="Replay">↻ replay</button>
+    </div>
+    <div class="term-body" id="demo-body" aria-live="polite"></div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── Web UI ────────────────────────────────────────────── -->
+<section class="section">
+  <h2 class="sec-title">// WEB INTERFACE</h2>
+  <p class="sec-lede">
+    Beyond the CLI, ChronoTrace ships a full React application — an interactive timeline browser
+    with filtering, export, and compare capabilities.
+  </p>
+
+  <div class="ui-grid">
+    <div class="ui-card">
+      <div class="ui-num">01</div>
+      <h4>Interactive Timeline</h4>
+      <p>Zoomable, pannable vis.js timeline with color-coded lanes per source. Scroll to zoom, drag to pan, click any event to inspect its full detail.</p>
+    </div>
+    <div class="ui-card">
+      <div class="ui-num">02</div>
+      <h4>Filter Panel</h4>
+      <p>Filter by source, event type, date range, or keyword simultaneously. Active source badges distinguish passive results from live probe data.</p>
+    </div>
+    <div class="ui-card">
+      <div class="ui-num">03</div>
+      <h4>Live SSE Progress</h4>
+      <p>Server-Sent Events stream individual scan results as connectors finish. Watch the timeline populate in real time — no polling, no page refresh.</p>
+    </div>
+    <div class="ui-card">
+      <div class="ui-num">04</div>
+      <h4>Export & Compare</h4>
+      <p>Export the full result or a filtered slice as JSON or CSV. Compare mode lets you overlay two domain timelines side-by-side for diff analysis.</p>
+    </div>
+    <div class="ui-card">
+      <div class="ui-num">05</div>
+      <h4>API Key Vault</h4>
+      <p>Optional enrichment sources (Shodan, VirusTotal, HIBP, SecurityTrails) activate once you add their API keys — stored only in your browser.</p>
+    </div>
+    <div class="ui-card">
+      <div class="ui-num">06</div>
+      <h4>Scan History</h4>
+      <p>Every completed scan is persisted. Reload past jobs instantly without re-running them. Navigate between jobs from the history panel.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── Features ─────────────────────────────────────────── -->
+<section id="features" class="section">
+  <h2 class="sec-title">// CLI CAPABILITIES</h2>
+
+  <div class="feat-grid">
+    <article class="feat">
+      <div class="feat-tag">[01]</div>
+      <h3>Passive Aggregation</h3>
+      <p>Wayback Machine CDX, crt.sh CT logs, RDAP registration, and live DNS — all queried in parallel, all in ~90 seconds. The target never sees a packet from you.</p>
+      <ul class="feat-list">
+        <li>+ Up to 5,000 historical URLs per scan</li>
+        <li>+ Every TLS cert ever issued for the domain</li>
+        <li>+ Subdomain enumeration via CT log traversal</li>
+        <li>+ Retry-with-backoff on flaky APIs</li>
+      </ul>
+    </article>
+
+    <article class="feat">
+      <div class="feat-tag">[02]</div>
+      <h3>Active Probing</h3>
+      <p>Seven Tier-2 modules behind a hard authorization gate: live HTTP probe, TLS handshake, service-aware port scan, AXFR attempt, well-known harvesting, directory probe.</p>
+      <ul class="feat-list">
+        <li>+ Top-20 or full 1–65535 port scan</li>
+        <li>+ Banner grab with service-aware signatures</li>
+        <li>+ HTTP security header audit</li>
+        <li>+ ~150 high-value path probing</li>
+      </ul>
+    </article>
+
+    <article class="feat">
+      <div class="feat-tag">[03]</div>
+      <h3>Pipe-Friendly Output</h3>
+      <p>Rich-rendered terminal tables by default. JSON or CSV for downstream tooling. Quiet and no-color modes for scripts. Built to chain into nuclei, nmap, ffuf, Burp.</p>
+      <ul class="feat-list">
+        <li>+ chronotrace target.com --json | jq</li>
+        <li>+ --csv for Excel/spreadsheet imports</li>
+        <li>+ --quiet --no-color for cron jobs</li>
+        <li>+ Standard exit codes (0 / 1 / 2 / 3)</li>
+      </ul>
+    </article>
+
+    <article class="feat">
+      <div class="feat-tag">[04]</div>
+      <h3>Authorization-Gated</h3>
+      <p>Active modules require you to retype the target domain before sending any live traffic. -y flag available for scripted authorized use only. Every scan is audit-logged.</p>
+      <ul class="feat-list">
+        <li>+ Interactive confirmation prompt by default</li>
+        <li>+ Per-module red ACTIVE badge in web UI</li>
+        <li>+ CFAA / GDPR / Computer Crime Act aware</li>
+        <li>+ Scope confirmation modal in the web UI</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── Sources ───────────────────────────────────────────── -->
+<section id="sources" class="section">
+  <h2 class="sec-title">// DATA SOURCES</h2>
+  <p class="sec-lede">
+    Four free sources run automatically. Enrichment sources activate once you supply API keys.
+    All sources are queried concurrently via async workers.
+  </p>
+
+  <div class="src-grid">
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">🕰️</span>
+        <span class="src-name">Wayback Machine</span>
+        <span class="src-bdg free">FREE</span>
+      </div>
+      <p>Internet Archive CDX API. Historical snapshots with permanent citation URLs. Up to 5,000 events per scan.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">🔒</span>
+        <span class="src-name">crt.sh</span>
+        <span class="src-bdg free">FREE</span>
+      </div>
+      <p>Certificate Transparency log search. Every TLS cert ever issued — exposes subdomains, their first-seen dates, and issuers.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">📋</span>
+        <span class="src-name">RDAP</span>
+        <span class="src-bdg free">FREE</span>
+      </div>
+      <p>Registration Data Access Protocol. Registrar, creation / expiry dates, nameservers, and registrant history.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">🌐</span>
+        <span class="src-name">DNS (live)</span>
+        <span class="src-bdg free">FREE</span>
+      </div>
+      <p>A, AAAA, MX, TXT, NS, CNAME record resolution. Anchors current infrastructure state to the historical timeline.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">🔍</span>
+        <span class="src-name">Shodan</span>
+        <span class="src-bdg opt">API KEY</span>
+      </div>
+      <p>Internet-wide scan data: open ports, service banners, exposure history, and infrastructure fingerprints.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">🛡️</span>
+        <span class="src-name">VirusTotal</span>
+        <span class="src-bdg opt">API KEY</span>
+      </div>
+      <p>Aggregated threat intelligence: malware associations, URL verdicts, historical detections, vendor analysis.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">🚨</span>
+        <span class="src-name">HIBP</span>
+        <span class="src-bdg opt">API KEY</span>
+      </div>
+      <p>Have I Been Pwned breach records associated with the domain — credential leak history and affected accounts.</p>
+    </div>
+
+    <div class="src">
+      <div class="src-head">
+        <span class="src-ico">📡</span>
+        <span class="src-name">SecurityTrails</span>
+        <span class="src-bdg opt">API KEY</span>
+      </div>
+      <p>Historical DNS records and IP history. Tracks IP transitions, nameserver changes, and past infrastructure configs.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── Install ───────────────────────────────────────────── -->
+<section id="install" class="section">
+  <h2 class="sec-title">// INSTALL</h2>
+  <p class="sec-lede">
+    One-line install via pipx. Puts <code>chronotrace</code> in your <code>$PATH</code> alongside nmap, sqlmap, and hydra.
+  </p>
+
+  <div class="install-blk">
+    <div class="install-hdr">
+      <span class="install-os">kali · ubuntu · macos</span>
+      <button class="copy-btn" data-target="cmd-unix">copy</button>
+    </div>
+    <pre class="install-code" id="cmd-unix"><span class="cm"># clone, install, verify</span>
+<span class="p">$</span> sudo apt install -y pipx jq
+<span class="p">$</span> pipx ensurepath
+<span class="p">$</span> git clone https://github.com/DularaAbhiranda/ChronoTrace.git
+<span class="p">$</span> cd ChronoTrace
+<span class="p">$</span> pipx install ./backend
+<span class="p">$</span> chronotrace --version
+<span class="out">chronotrace 1.0.0</span></pre>
+  </div>
+
+  <div class="install-blk">
+    <div class="install-hdr">
+      <span class="install-os">windows · powershell</span>
+      <button class="copy-btn" data-target="cmd-win">copy</button>
+    </div>
+    <pre class="install-code" id="cmd-win"><span class="p">PS&gt;</span> python -m pip install --user pipx
+<span class="p">PS&gt;</span> python -m pipx ensurepath
+<span class="p">PS&gt;</span> git clone https://github.com/DularaAbhiranda/ChronoTrace.git
+<span class="p">PS&gt;</span> cd ChronoTrace
+<span class="p">PS&gt;</span> pipx install .\backend
+<span class="p">PS&gt;</span> chronotrace --version</pre>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── Recipes ───────────────────────────────────────────── -->
+<section id="recipes" class="section">
+  <h2 class="sec-title">// RECIPES BY ROLE</h2>
+  <p class="sec-lede">Pick the scenario closest to what you're doing. Full instructions in the 50-page User Guide.</p>
+
+  <div class="rec-grid">
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="rec">
+      <span class="rec-n">01</span>
+      <h4>Curious explorer</h4>
+      <code>chronotrace example.com</code>
+      <p>Safe passive scan against any public target. No active traffic, zero risk.</p>
+    </a>
+
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="rec">
+      <span class="rec-n">02</span>
+      <h4>Site owner / DevSec</h4>
+      <code>chronotrace mysite.com --active -y</code>
+      <p>Audit your own domain: forgotten subdomains, missing security headers, exposed paths.</p>
+    </a>
+
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="rec">
+      <span class="rec-n">03</span>
+      <h4>Authorized pentest</h4>
+      <code>chronotrace target.com --full -y -o recon.json</code>
+      <p>Complete external surface map in ~10 min. Feed JSON into nuclei, ffuf, or Burp.</p>
+    </a>
+
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="rec">
+      <span class="rec-n">04</span>
+      <h4>Brand-abuse investigator</h4>
+      <code>chronotrace fake-brand.tld --only wayback,crt_sh,rdap</code>
+      <p>Passive evidence collection on phishing lookalikes. RDAP date + first CT cert proves intent.</p>
+    </a>
+
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="rec">
+      <span class="rec-n">05</span>
+      <h4>Incident responder</h4>
+      <code>chronotrace affected.com --json -o ir-timeline.json</code>
+      <p>Reconstruct attacker infra timeline. CT first-seen dates expose provisioning timestamps.</p>
+    </a>
+
+    <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="rec">
+      <span class="rec-n">06</span>
+      <h4>Journalist / researcher</h4>
+      <code>chronotrace newssite.com --only wayback</code>
+      <p>What did this site say before the edit? Wayback CDX with permanent citation URLs.</p>
+    </a>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ── Ethics ────────────────────────────────────────────── -->
+<section class="section">
+  <h2 class="sec-title">// RESPONSIBLE USE</h2>
+
+  <div class="ethics-card">
+    <p>
+      ChronoTrace is built for <strong>authorized</strong> use only: domains you own, domains you are
+      contracted to assess, or public threat-intelligence research with a clear legitimate purpose.
+      Active modules send live requests that appear in target server logs and IDS alerts.
+      Unauthorized reconnaissance may violate the Computer Fraud &amp; Abuse Act, GDPR Article 32,
+      the Sri Lanka Computer Crime Act No. 24 of 2007, and equivalent laws in your jurisdiction.
+    </p>
+    <p class="ethics-note">
+      &gt; The authorization prompt is a hard gate. It cannot be bypassed without the -y flag.
+      Use -y only when you have verified written authorization for the target.
+    </p>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────── -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <h5>ChronoTrace</h5>
+      <p>v1.0 · MIT license · Python 3.10+</p>
+      <p><a href="https://github.com/DularaAbhiranda/ChronoTrace">github.com/DularaAbhiranda/ChronoTrace</a></p>
+    </div>
+    <div>
+      <h5>Documentation</h5>
+      <p><a href="https://github.com/DularaAbhiranda/ChronoTrace#readme">README</a></p>
+      <p><a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx">User Guide (50 pages)</a></p>
+      <p><code>chronotrace --help</code></p>
+    </div>
+    <div>
+      <h5>Author</h5>
+      <p>Dulara Abhiranda</p>
+      <p>Made with caffeine &amp; obsession in Sri Lanka 🇱🇰</p>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; 2026 ChronoTrace</span>
+    <span>·</span>
+    <span>MIT License</span>
+    <span>·</span>
+    <span>For authorized use only</span>
+  </div>
+</footer>
+
+<script>
+// ─── Hero typewriter ─────────────────────────────────────────────────────────
+const CMDS = [
+  "chronotrace example.com",
+  "chronotrace target.com --active -y",
+  "chronotrace mysite.com --json -o audit.json",
+  "chronotrace target.com --port-scan --axfr --dir-probe",
+  "chronotrace --list-modules",
+];
+
+(function typewriter() {
+  const el = document.getElementById("typewriter");
+  if (!el) return;
+  let ci = 0, ch = 0, del = false;
+  function tick() {
+    const cur = CMDS[ci];
+    if (!del) {
+      el.textContent = cur.slice(0, ++ch);
+      if (ch >= cur.length) { del = true; return setTimeout(tick, 2200); }
+      setTimeout(tick, 50 + Math.random() * 40);
+    } else {
+      el.textContent = cur.slice(0, --ch);
+      if (ch <= 0) { del = false; ci = (ci + 1) % CMDS.length; return setTimeout(tick, 400); }
+      setTimeout(tick, 22);
+    }
+  }
+  tick();
+})();
+
+// ─── Terminal demo ────────────────────────────────────────────────────────────
+const SCRIPT = [
+  { d:600,  h:'<span class="ok">$</span> <span class="hi">chronotrace example.com --active -y</span>' },
+  { d:80,   h:'' },
+  { d:80,   h:'<span class="banner"> ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ██╗ ██████╗ ████████╗██████╗  █████╗  ██████╗███████╗</span>' },
+  { d:80,   h:'<span class="banner">██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝</span>' },
+  { d:80,   h:'<span class="banner">██║     ███████║██████╔╝██║   ██║██╔██╗ ██║██║   ██║   ██║   ██████╔╝███████║██║     █████╗</span>'  },
+  { d:80,   h:'<span class="banner">██║     ██╔══██║██╔══██╗██║   ██║██║╚██╗██║██║   ██║   ██║   ██╔══██╗██╔══██║██║     ██╔══╝</span>'  },
+  { d:80,   h:'<span class="banner">╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚████║╚██████╔╝   ██║   ██║  ██║██║  ██║╚██████╗███████╗</span>' },
+  { d:80,   h:'<span class="banner"> ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝</span>' },
+  { d:80,   h:'' },
+  { d:80,   h:'         <span class="warn">Domain History · Certificate Transparency · Active Recon</span>' },
+  { d:300,  h:'        <span class="info">v1.0.0  by Dulara Abhiranda · github.com/DularaAbhiranda/ChronoTrace</span>' },
+  { d:200,  h:'' },
+  { d:80,   h:'<span class="hi">Target:</span>   example.com' },
+  { d:80,   h:'<span class="hi">Passive:</span>  wayback, crt_sh, rdap, dns' },
+  { d:80,   h:'<span class="err">Active:</span>   port_scan, http_probe, tls_live, well_known, dns_axfr, dir_probe' },
+  { d:800,  h:'<span class="hi">Started:</span>  2026-05-27 00:42:11' },
+  { d:200,  h:'' },
+  { d:500,  h:'<span class="hi">Running connectors...</span>' },
+  { d:700,  h:'<span class="ok">[+]</span> dns                  <span class="info">0.3s</span>      <span class="hi">5</span> events' },
+  { d:1100, h:'<span class="ok">[+]</span> rdap                 <span class="info">1.7s</span>      <span class="hi">2</span> events' },
+  { d:400,  h:'<span class="ok">[+]</span> tls_live             <span class="info">0.4s</span>      <span class="hi">1</span> event'  },
+  { d:600,  h:'<span class="ok">[+]</span> http_probe           <span class="info">0.9s</span>      <span class="hi">2</span> events' },
+  { d:500,  h:'<span class="ok">[+]</span> dns_axfr             <span class="info">1.3s</span>      <span class="hi">2</span> events' },
+  { d:1800, h:'<span class="ok">[+]</span> well_known           <span class="info">3.1s</span>      <span class="hi">5</span> events' },
+  { d:1900, h:'<span class="ok">[+]</span> port_scan            <span class="info">5.0s</span>      <span class="hi">5</span> events' },
+  { d:1700, h:'<span class="ok">[+]</span> dir_probe            <span class="info">6.6s</span>     <span class="hi">27</span> events' },
+  { d:2200, h:'<span class="ok">[+]</span> crt_sh              <span class="info">26.2s</span>   <span class="hi">1119</span> events' },
+  { d:2400, h:'<span class="ok">[+]</span> wayback             <span class="info">85.7s</span>   <span class="hi">4991</span> events' },
+  { d:300,  h:'' },
+  { d:80,   h:'<span class="hi">          Source Summary</span>' },
+  { d:80,   h:'<span class="info">┏━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━┓</span>' },
+  { d:80,   h:'<span class="info">┃</span> <span class="cy">Source</span>      <span class="info">┃</span> <span class="cy">Events</span> <span class="info">┃</span> <span class="cy">Status</span>   <span class="info">┃</span>' },
+  { d:80,   h:'<span class="info">┡━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━┩</span>' },
+  { d:80,   h:'<span class="info">│</span> wayback     <span class="info">│</span>   <span class="hi">4991</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> crt_sh      <span class="info">│</span>   <span class="hi">1119</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> rdap        <span class="info">│</span>      <span class="hi">2</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> dns         <span class="info">│</span>      <span class="hi">5</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> port_scan   <span class="info">│</span>      <span class="hi">5</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> http_probe  <span class="info">│</span>      <span class="hi">2</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> tls_live    <span class="info">│</span>      <span class="hi">1</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> well_known  <span class="info">│</span>      <span class="hi">5</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> dns_axfr    <span class="info">│</span>      <span class="hi">2</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:80,   h:'<span class="info">│</span> dir_probe   <span class="info">│</span>     <span class="hi">27</span> <span class="info">│</span> <span class="ok">OK</span>       <span class="info">│</span>' },
+  { d:500,  h:'<span class="info">└─────────────┴────────┴──────────┘</span>' },
+  { d:200,  h:'' },
+  { d:80,   h:'<span class="warn">╭────────── Scan Complete ───────────╮</span>' },
+  { d:80,   h:'<span class="warn">│</span> <span class="hi">6159</span> total events · <span class="hi">9</span> sources      <span class="warn">│</span>' },
+  { d:80,   h:'<span class="warn">│</span> Range: <span class="info">1995-08-14 → 2026-05-27</span>    <span class="warn">│</span>' },
+  { d:80,   h:'<span class="warn">╰────────────────────────────────────╯</span>' },
+  { d:200,  h:'' },
+  { d:80,   h:'<span class="info">Elapsed: 85.8s</span>' },
+  { d:0,    h:'<span class="ok">$</span> <span class="tcur"></span>' },
+];
+
+(function demo() {
+  const body = document.getElementById("demo-body");
+  const btn  = document.getElementById("replay-btn");
+  if (!body) return;
+
+  let ids = [];
+
+  function clear() { ids.forEach(clearTimeout); ids = []; body.innerHTML = ""; }
+
+  function run() {
+    clear();
+    let t = 0;
+    SCRIPT.forEach(({ d, h }) => {
+      t += d;
+      ids.push(setTimeout(() => {
+        const div = document.createElement("div");
+        div.innerHTML = h || "&nbsp;";
+        body.appendChild(div);
+        body.scrollTop = body.scrollHeight;
+      }, t));
+    });
+    ids.push(setTimeout(run, t + 8000));
+  }
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e) => { if (e.isIntersecting && body.children.length === 0) run(); });
+  }, { threshold: 0.15 });
+  obs.observe(body);
+
+  if (btn) btn.addEventListener("click", run);
+})();
+
+// ─── Copy buttons ─────────────────────────────────────────────────────────────
+document.querySelectorAll(".copy-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const el = document.getElementById(btn.dataset.target);
+    if (!el) return;
+    const text = el.textContent.trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = "✓ copied";
+      btn.classList.add("ok");
+      setTimeout(() => { btn.textContent = "copy"; btn.classList.remove("ok"); }, 2000);
+    }).catch(() => { btn.textContent = "failed"; });
+  });
+});
+
+// ─── ASCII art glitch on hover ────────────────────────────────────────────────
+const art = document.querySelector(".ascii-art");
+if (art) {
+  art.addEventListener("mouseenter", () => {
+    let n = 0;
+    const id = setInterval(() => {
+      art.style.transform = `translateX(${(Math.random() - 0.5) * 4}px)`;
+      if (++n > 6) { clearInterval(id); art.style.transform = ""; }
+    }, 50);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChronoTrace // Domain History &amp; OSINT Timeline</title>
+  <meta name="description" content="ChronoTrace — Pip-installable Kali-style CLI for domain history, certificate transparency, and active reconnaissance." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- CRT scanline overlay (purely decorative) -->
+  <div class="scanlines" aria-hidden="true"></div>
+  <div class="crt-glow" aria-hidden="true"></div>
+
+  <!-- ─────────────────── NAV ─────────────────── -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="#top" class="nav-brand">
+        <span class="brand-cursor">▌</span>
+        <span class="brand-text">ChronoTrace</span>
+        <span class="brand-version">v1.0</span>
+      </a>
+      <div class="nav-links">
+        <a href="#demo">demo</a>
+        <a href="#features">features</a>
+        <a href="#install">install</a>
+        <a href="#recipes">recipes</a>
+        <a href="https://github.com/DularaAbhiranda/ChronoTrace" target="_blank" rel="noopener">github →</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ─────────────────── HERO ─────────────────── -->
+  <header id="top" class="hero">
+    <pre class="ascii-banner" aria-label="ChronoTrace logo">
+ ██████╗██╗  ██╗██████╗  ██████╗ ███╗   ██╗ ██████╗ ████████╗██████╗  █████╗  ██████╗███████╗
+██╔════╝██║  ██║██╔══██╗██╔═══██╗████╗  ██║██╔═══██╗╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██╔════╝
+██║     ███████║██████╔╝██║   ██║██╔██╗ ██║██║   ██║   ██║   ██████╔╝███████║██║     █████╗
+██║     ██╔══██║██╔══██╗██║   ██║██║╚██╗██║██║   ██║   ██║   ██╔══██╗██╔══██║██║     ██╔══╝
+╚██████╗██║  ██║██║  ██║╚██████╔╝██║ ╚████║╚██████╔╝   ██║   ██║  ██║██║  ██║╚██████╗███████╗
+ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚══════╝</pre>
+    <p class="hero-tagline">
+      &gt; Domain History · Certificate Transparency · Active Recon
+    </p>
+
+    <div class="hero-prompt">
+      <span class="prompt">$&nbsp;</span><span id="typewriter"></span><span class="cursor blink">▌</span>
+    </div>
+
+    <p class="hero-desc">
+      A pip-installable Kali-style command-line tool that consolidates Wayback Machine, crt.sh, RDAP, live DNS,
+      and seven opt-in active modules into one chronological timeline. Built for security researchers,
+      authorized pentesters, brand-abuse investigators, and incident responders.
+    </p>
+
+    <div class="hero-cta">
+      <a href="#install" class="btn btn-primary">[ get started ]</a>
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace" target="_blank" rel="noopener" class="btn btn-ghost">[ source code ↗ ]</a>
+    </div>
+
+    <div class="hero-meta">
+      <span class="badge">Python 3.10+</span>
+      <span class="badge">MIT license</span>
+      <span class="badge">Kali · Ubuntu · macOS · Windows</span>
+      <span class="badge">11 data sources</span>
+    </div>
+  </header>
+
+  <!-- ─────────────────── LIVE DEMO ─────────────────── -->
+  <section id="demo" class="section">
+    <h2 class="section-title">// LIVE TERMINAL DEMO</h2>
+    <p class="section-lede">
+      A live (looped) recording of <code>chronotrace example.com --active</code> showing real scan output.
+    </p>
+
+    <div class="terminal">
+      <div class="terminal-chrome">
+        <div class="terminal-dots">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+        </div>
+        <div class="terminal-title">kali@chronotrace ~ </div>
+        <button id="demo-restart" class="demo-restart" title="Replay demo">↻ replay</button>
+      </div>
+      <div class="terminal-body" id="demo-body" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── FEATURES ─────────────────── -->
+  <section id="features" class="section">
+    <h2 class="section-title">// CAPABILITIES</h2>
+    <div class="features-grid">
+
+      <article class="feature">
+        <div class="feature-icon">[01]</div>
+        <h3>Passive Aggregation</h3>
+        <p>Wayback Machine CDX, crt.sh Certificate Transparency, RDAP registration, live DNS — all in parallel, all in 90 seconds. The target never knows you looked.</p>
+        <ul class="feature-list">
+          <li>+ Up to 5,000 historical URLs per scan</li>
+          <li>+ Every TLS cert ever issued for the domain</li>
+          <li>+ Subdomains derived from CT logs</li>
+          <li>+ Retry-with-backoff on flaky APIs</li>
+        </ul>
+      </article>
+
+      <article class="feature">
+        <div class="feature-icon">[02]</div>
+        <h3>Active Probing (Opt-in)</h3>
+        <p>Seven Tier-2 active modules behind a hard authorization gate. Live HTTP probing, real TLS handshake, service-aware port scan, AXFR attempt, well-known harvesting, directory probe.</p>
+        <ul class="feature-list">
+          <li>+ Top-20 or full 1-65535 port scan</li>
+          <li>+ Banner grab with service-aware probes</li>
+          <li>+ HTTP security header audit</li>
+          <li>+ ~150 high-value path probing</li>
+        </ul>
+      </article>
+
+      <article class="feature">
+        <div class="feature-icon">[03]</div>
+        <h3>Pipe-Friendly Output</h3>
+        <p>Pretty Rich-rendered terminal tables by default. JSON or CSV for downstream tools. Quiet and no-color modes for scripts. Designed to chain into nuclei, nmap, ffuf, Burp.</p>
+        <ul class="feature-list">
+          <li>+ chronotrace target.com --json | jq</li>
+          <li>+ --csv for Excel imports</li>
+          <li>+ --quiet --no-color for cron jobs</li>
+          <li>+ Standard exit codes (0/1/2/3)</li>
+        </ul>
+      </article>
+
+      <article class="feature">
+        <div class="feature-icon">[04]</div>
+        <h3>Authorization-Gated</h3>
+        <p>Active modules require explicit confirmation. The default flow asks you to retype the target domain before sending any live traffic. CFAA / GDPR / Sri Lanka Computer Crime Act respected.</p>
+        <ul class="feature-list">
+          <li>+ Interactive prompt by default</li>
+          <li>+ -y flag for scripted use only</li>
+          <li>+ Per-module visual distinction (red badge)</li>
+          <li>+ Audit log of every scan</li>
+        </ul>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ─────────────────── INSTALL ─────────────────── -->
+  <section id="install" class="section">
+    <h2 class="section-title">// INSTALL</h2>
+    <p class="section-lede">
+      One-line install on Kali / Ubuntu / macOS via pipx. Adds <code>chronotrace</code> to your <code>$PATH</code>
+      alongside nmap, hydra, sqlmap.
+    </p>
+
+    <div class="install-block">
+      <div class="install-header">
+        <span class="install-os">kali · ubuntu · macos</span>
+        <button class="copy-btn" data-target="install-cmd">copy</button>
+      </div>
+      <pre id="install-cmd" class="install-code"><span class="comment"># clone, install, verify</span>
+<span class="prompt">$</span> sudo apt install -y pipx jq
+<span class="prompt">$</span> pipx ensurepath
+<span class="prompt">$</span> git clone https://github.com/DularaAbhiranda/ChronoTrace.git
+<span class="prompt">$</span> cd ChronoTrace
+<span class="prompt">$</span> pipx install ./backend
+<span class="prompt">$</span> chronotrace --version
+<span class="output">chronotrace 1.0.0</span></pre>
+    </div>
+
+    <div class="install-block">
+      <div class="install-header">
+        <span class="install-os">windows · powershell</span>
+        <button class="copy-btn" data-target="install-cmd-win">copy</button>
+      </div>
+      <pre id="install-cmd-win" class="install-code"><span class="prompt">PS&gt;</span> python -m pip install --user pipx
+<span class="prompt">PS&gt;</span> python -m pipx ensurepath
+<span class="prompt">PS&gt;</span> git clone https://github.com/DularaAbhiranda/ChronoTrace.git
+<span class="prompt">PS&gt;</span> cd ChronoTrace
+<span class="prompt">PS&gt;</span> pipx install .\backend
+<span class="prompt">PS&gt;</span> chronotrace --version</pre>
+    </div>
+  </section>
+
+  <!-- ─────────────────── RECIPES ─────────────────── -->
+  <section id="recipes" class="section">
+    <h2 class="section-title">// RECIPES BY ROLE</h2>
+    <p class="section-lede">Pick the scenario closest to what you're doing. Full instructions in the 50-page user guide.</p>
+
+    <div class="recipes-grid">
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="recipe">
+        <span class="recipe-num">01</span>
+        <h4>Curious explorer</h4>
+        <code>chronotrace example.com</code>
+        <p>Just see what's possible. Run a safe passive scan against any public target.</p>
+      </a>
+
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="recipe">
+        <span class="recipe-num">02</span>
+        <h4>Site owner</h4>
+        <code>chronotrace mysite.com --active -y</code>
+        <p>Audit your own domain for forgotten subdomains, missing security headers, exposed paths.</p>
+      </a>
+
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="recipe">
+        <span class="recipe-num">03</span>
+        <h4>Authorized pentest</h4>
+        <code>chronotrace target.com --full -y -o recon.json --json</code>
+        <p>Complete external surface map in 10 min. Feed the JSON into nuclei, ffuf, Burp.</p>
+      </a>
+
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="recipe">
+        <span class="recipe-num">04</span>
+        <h4>Brand-abuse investigator</h4>
+        <code>chronotrace fake-bank.tld --only wayback,crt_sh,rdap,dns</code>
+        <p>Passive evidence collection on phishing lookalikes. RDAP date + first CT cert proves intent.</p>
+      </a>
+
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="recipe">
+        <span class="recipe-num">05</span>
+        <h4>Incident responder</h4>
+        <code>chronotrace affected.com --json -o ir-timeline.json</code>
+        <p>Reconstruct attacker infra timeline. CT first-seen dates show provisioning timestamps.</p>
+      </a>
+
+      <a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx" class="recipe">
+        <span class="recipe-num">06</span>
+        <h4>Journalist / researcher</h4>
+        <code>chronotrace newssite.com --only wayback</code>
+        <p>What did this site say before the edit? Wayback CDX with permanent citation URLs.</p>
+      </a>
+    </div>
+  </section>
+
+  <!-- ─────────────────── STATS ─────────────────── -->
+  <section class="stats-section">
+    <div class="stats">
+      <div class="stat"><span class="stat-n">11</span><span class="stat-l">data sources</span></div>
+      <div class="stat"><span class="stat-n">7</span><span class="stat-l">active modules</span></div>
+      <div class="stat"><span class="stat-n">65535</span><span class="stat-l">ports scannable</span></div>
+      <div class="stat"><span class="stat-n">~90s</span><span class="stat-l">passive scan time</span></div>
+      <div class="stat"><span class="stat-n">5000</span><span class="stat-l">events per scan cap</span></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── ETHICS ─────────────────── -->
+  <section class="section ethics">
+    <h2 class="section-title">// RESPONSIBLE USE</h2>
+    <div class="ethics-card">
+      <p>
+        ChronoTrace is built for <strong>authorized</strong> use: domains you own, domains you're contracted
+        to assess, or public threat-intelligence research. Active modules send live requests that appear in
+        target server logs and IDS systems. Unauthorized reconnaissance may violate the
+        Computer Fraud &amp; Abuse Act, GDPR Article 32, the Sri Lanka Computer Crime Act, and equivalent
+        laws in your jurisdiction.
+      </p>
+      <p class="ethics-callout">
+        &gt; The authorization prompt is a hard gate. It cannot be bypassed without -y.
+        Use that flag only when you are 100% sure about the target.
+      </p>
+    </div>
+  </section>
+
+  <!-- ─────────────────── FOOTER ─────────────────── -->
+  <footer class="footer">
+    <div class="footer-grid">
+      <div>
+        <h5>ChronoTrace</h5>
+        <p>v1.0 · MIT license · Python 3.10+</p>
+        <p><a href="https://github.com/DularaAbhiranda/ChronoTrace">github.com/DularaAbhiranda/ChronoTrace</a></p>
+      </div>
+      <div>
+        <h5>Documentation</h5>
+        <p><a href="https://github.com/DularaAbhiranda/ChronoTrace#readme">README</a></p>
+        <p><a href="https://github.com/DularaAbhiranda/ChronoTrace/blob/main/ChronoTrace_User_Guide.docx">User Guide (50 pages)</a></p>
+        <p><code>chronotrace --help</code></p>
+      </div>
+      <div>
+        <h5>Author</h5>
+        <p>Dulara Abhiranda</p>
+        <p>Made with caffeine in Sri Lanka 🇱🇰</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 · ChronoTrace</span>
+      <span class="separator">·</span>
+      <span>For authorized use only</span>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
