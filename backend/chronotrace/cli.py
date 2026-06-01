@@ -35,7 +35,7 @@ from chronotrace.connectors.active import (
 )
 from chronotrace.models.event import NormalizedEvent, EventSource
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 # Big ANSI Shadow banner — same style nmap/sqlmap/metasploit use.
 # Requires terminal width ≥ 96 columns; falls back to the small slant banner otherwise.
@@ -408,6 +408,42 @@ def to_csv(scan: dict) -> str:
     return buf.getvalue()
 
 
+# ─────────────────────── windows console / ansi ─────────────────────────
+
+def _enable_windows_ansi() -> None:
+    """Enable ANSI / virtual-terminal processing on the Windows console.
+
+    Classic conhost and PowerShell 5.1 start with VT processing *disabled*,
+    so ANSI color codes get printed literally (the dreaded ``←[1;36m``).
+    Flipping on ENABLE_VIRTUAL_TERMINAL_PROCESSING makes them render.
+    Safe no-op off-Windows, on redirected output, or on consoles too old
+    to support it.
+    """
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.windll.kernel32
+        kernel32.GetStdHandle.restype = wintypes.HANDLE
+        kernel32.GetStdHandle.argtypes = [wintypes.DWORD]
+        kernel32.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel32.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+
+        ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+        for std_id in (-11, -12):  # STD_OUTPUT_HANDLE, STD_ERROR_HANDLE
+            handle = kernel32.GetStdHandle(std_id)
+            if not handle:
+                continue
+            mode = wintypes.DWORD()
+            if not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+                continue  # redirected to a file/pipe — not a real console
+            kernel32.SetConsoleMode(handle, mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+    except Exception:
+        pass
+
+
 # ─────────────────────────── main entrypoint ────────────────────────────
 
 def main(argv: list[str] | None = None) -> int:
@@ -419,12 +455,12 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
+        _enable_windows_ansi()  # turn on VT processing so ANSI colors render
     console = Console(
         no_color=args.no_color,
         stderr=False,
         soft_wrap=False,
-        legacy_windows=False,  # bypass Windows legacy console API
-        safe_box=True,         # ASCII-only box characters
+        safe_box=True,         # ASCII-safe box characters on legacy consoles
     )
 
     if args.verbose:

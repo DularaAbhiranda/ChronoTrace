@@ -96,7 +96,7 @@ git clone https://github.com/DularaAbhiranda/ChronoTrace.git
 cd ChronoTrace
 pipx install ./backend
 chronotrace --version
-# chronotrace 1.0.0
+# chronotrace 1.0.1
 ```
 
 **Windows · PowerShell:**

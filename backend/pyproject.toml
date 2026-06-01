@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chronotrace"
-version = "1.0.0"
+version = "1.0.1"
 description = "Domain history & OSINT timeline tool — passive aggregation (Wayback, crt.sh, RDAP, DNS) + opt-in active probing (port scan, AXFR, dir probe, TLS, HTTP fingerprint). Pip-installable CLI like nmap/hydra. See https://github.com/DularaAbhiranda/ChronoTrace for full docs."
 requires-python = ">=3.10"
 license = { text = "MIT" }
