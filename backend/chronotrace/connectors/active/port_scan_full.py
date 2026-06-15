@@ -20,25 +20,9 @@ import ssl
 from datetime import datetime, timezone
 from typing import List, Optional
 from chronotrace.models.event import NormalizedEvent, EventSource, EventType, Confidence
+from chronotrace.connectors.active.services import service_name
 
 log = logging.getLogger(__name__)
-
-KNOWN_SERVICES = {
-    21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp", 53: "dns",
-    80: "http", 110: "pop3", 111: "rpc", 135: "msrpc", 139: "netbios",
-    143: "imap", 443: "https", 445: "smb", 465: "smtps", 587: "submission",
-    993: "imaps", 995: "pop3s", 1433: "mssql", 1521: "oracle", 2049: "nfs",
-    2222: "ssh-alt", 2375: "docker", 2376: "docker-tls", 3000: "node-dev",
-    3306: "mysql", 3389: "rdp", 4444: "metasploit", 5000: "upnp", 5432: "postgres",
-    5601: "kibana", 5672: "amqp", 5900: "vnc", 5984: "couchdb", 6379: "redis",
-    6443: "kubernetes", 7474: "neo4j", 8000: "http-alt", 8008: "http-alt",
-    8080: "http-alt", 8081: "http-alt", 8086: "influxdb", 8088: "http-alt",
-    8443: "https-alt", 8500: "consul", 8888: "http-alt", 9000: "http-mgmt",
-    9090: "prometheus", 9092: "kafka", 9200: "elasticsearch", 9300: "elasticsearch",
-    9929: "nmap-test", 11211: "memcached", 15672: "rabbitmq-mgmt",
-    27017: "mongodb", 27018: "mongodb", 31337: "elite",
-    50070: "hadoop", 50075: "hadoop",
-}
 
 WORKERS = 100         # max concurrent in-flight sockets — well under Windows' 16K limit
 CHUNK_SIZE = 5000     # ports per chunk
@@ -108,7 +92,7 @@ async def _probe_port(host: str, port: int) -> Optional[NormalizedEvent]:
     except (asyncio.TimeoutError, ConnectionRefusedError, OSError):
         return None
 
-    service = KNOWN_SERVICES.get(port, "unknown")
+    service = service_name(port)
     banner = await _service_probe(reader, writer, host, port, service)
 
     tls_info: dict = {}
