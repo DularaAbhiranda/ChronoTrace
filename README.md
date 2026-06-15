@@ -44,6 +44,30 @@ Built for **security research, authorized pentest reconnaissance, brand-abuse in
 
 ---
 
+## ▶️ Run it (one command)
+
+No manual backend/frontend setup — each launcher builds and installs whatever's missing on first run, then starts instantly after. From the repo root:
+
+**Web GUI** — any OS (needs Python 3.10+ and Node.js):
+
+```bash
+python run.py
+```
+
+Serves the whole app from one server at **http://localhost:8001** and opens your browser. Flags: `--port 9000`, `--rebuild`, `--no-browser`.
+
+**CLI** — Linux / macOS (needs Python 3.10+):
+
+```bash
+chmod +x chronotrace.sh        # once
+./chronotrace.sh example.com
+./chronotrace.sh example.com --active
+```
+
+On Windows, install the `chronotrace` command ([Installation](#-installation)) or run `python -m chronotrace example.com`.
+
+---
+
 ## ✨ Features
 
 **CLI capabilities**
@@ -118,6 +142,8 @@ chronotrace --version
 
 <a id="-cli-usage"></a>
 
+> **No install?** On Linux/macOS, `./chronotrace.sh <args>` runs any command below with zero setup — it bootstraps a venv + deps on first run. The examples assume the installed `chronotrace` command.
+
 ```bash
 chronotrace example.com                                    # passive only — Wayback, crt.sh, RDAP, DNS
 chronotrace example.com --active                           # adds safe active modules (no full port scan)
@@ -162,27 +188,39 @@ ENRICHMENT (BYO API key)        well_known        — robots.txt, sitemap, .well
 
 <a id="-web-interface"></a>
 
-For the visual timeline, color-coded lanes, live progress, and side-by-side comparison:
+For the visual timeline, color-coded lanes, live progress, and side-by-side comparison.
+
+**Easiest — one command** (from the repo root):
+
+```bash
+python run.py
+```
+
+Sets up the backend venv, installs deps, builds the UI, and serves everything from a **single server** at **http://localhost:8001** (opens your browser automatically). Flags: `--port`, `--rebuild`, `--no-browser`.
+
+<details>
+<summary>Or run the two dev servers manually</summary>
 
 **Backend**
 
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate                  # Windows  (Linux/macOS: source venv/bin/activate)
+source venv/bin/activate              # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn chronotrace.main:app --port 8001
 ```
 
-**Frontend**
+**Frontend** (separate terminal)
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                            # http://localhost:5173, proxies /api to :8001
 ```
 
 Open <http://localhost:5173>.
+</details>
 
 ---
 

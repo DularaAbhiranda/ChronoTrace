@@ -70,7 +70,8 @@ export function Timeline({ events, onSelectEvent }: TimelineProps) {
 
     const groupDS = new DataSet(groups)
     const itemDS = new DataSet(items)
-    const tl = new VisTimelineClass(containerRef.current, itemDS, groupDS, options)
+    // vis-timeline's types require content: string, but HTMLElement content is valid at runtime
+    const tl = new VisTimelineClass(containerRef.current, itemDS as any, groupDS, options)
     timelineRef.current = tl
 
     tl.on('select', (props: { items: (string | number)[] }) => {

@@ -99,7 +99,7 @@ export function EventDetail({ event, onClose }: EventDetailProps) {
           </div>
         )}
 
-        {event.details.wayback_url && (
+        {!!event.details.wayback_url && (
           <a
             href={event.details.wayback_url as string}
             target="_blank"
@@ -110,7 +110,7 @@ export function EventDetail({ event, onClose }: EventDetailProps) {
             View archived snapshot
           </a>
         )}
-        {event.details.crt_sh_url && (
+        {!!event.details.crt_sh_url && (
           <a
             href={event.details.crt_sh_url as string}
             target="_blank"
