@@ -8,3 +8,4 @@ python-multipart>=0.0.12
 cryptography>=43
 python-dotenv>=1.0
 rich>=13.7
+openai>=1.35

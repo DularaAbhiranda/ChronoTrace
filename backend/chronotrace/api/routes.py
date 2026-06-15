@@ -5,6 +5,7 @@ import io
 from typing import Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
+from pydantic import BaseModel
 from chronotrace.models.event import ScanRequest, ExportRequest
 from chronotrace.workers import scan_worker
 from chronotrace.cache import sqlite_store
@@ -156,3 +157,43 @@ th{{background:#161b22}}tr:nth-child(even){{background:#161b22}}</style></head>
         )
 
     raise HTTPException(status_code=400, detail="Invalid format. Use json, csv, or html.")
+
+
+class AnalyzeRequest(BaseModel):
+    openai_api_key: Optional[str] = None
+
+
+@router.post("/scans/{job_id}/analyze")
+async def analyze_scan(job_id: str, request: AnalyzeRequest):
+    """Run GPT-4o attack path analysis on completed scan results.
+
+    Requires an OpenAI API key either in the request body or the
+    OPENAI_API_KEY environment variable on the server.
+    """
+    job = await sqlite_store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status != "completed":
+        raise HTTPException(status_code=400, detail="Scan not yet completed")
+    if not job.events:
+        raise HTTPException(status_code=400, detail="No scan events to analyze")
+
+    try:
+        from chronotrace.analysis import attack_path
+        report = await asyncio.to_thread(
+            attack_path.analyze,
+            job.domain,
+            job.events,
+            request.openai_api_key,
+        )
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="AI analysis unavailable: the 'openai' package is not installed on the server.",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI analysis failed: {exc}")
+
+    return {"job_id": job_id, "domain": job.domain, "analysis": report}

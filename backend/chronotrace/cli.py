@@ -135,6 +135,12 @@ def build_parser() -> argparse.ArgumentParser:
     en.add_argument("--vt-key", metavar="KEY", help="VirusTotal API key")
     en.add_argument("--hibp-key", metavar="KEY", help="Have I Been Pwned API key")
 
+    ai = p.add_argument_group("AI analysis (OpenAI / GPT-4o)")
+    ai.add_argument("--analyze", action="store_true",
+                    help="Run AI-powered attack path analysis after the scan (requires OpenAI API key)")
+    ai.add_argument("--openai-key", metavar="KEY",
+                    help="OpenAI API key for attack path analysis (default: $OPENAI_API_KEY)")
+
     out = p.add_argument_group("output")
     out.add_argument("-o", "--output", metavar="FILE", help="Write results to file (default: stdout pretty print)")
     out.add_argument("--json", action="store_true", help="Output as JSON")
@@ -297,6 +303,36 @@ async def run_scan(domain: str, passive: list[str], active: list[str],
 
 # ─────────────────────────── output formatters ────────────────────────────
 
+def _render_open_ports(results: dict, console: Console) -> None:
+    """nmap-style open-ports table with service mapping (dedupes top-20 + full)."""
+    port_evs = list(results.get("port_scan", [])) + list(results.get("port_scan_full", []))
+    by_port: dict[int, dict] = {}
+    for e in port_evs:
+        d = e.details or {}
+        p = d.get("port")
+        if p is not None:
+            by_port[p] = d
+    if not by_port:
+        return
+    tbl = Table(title=f"Open Ports ({len(by_port)})", border_style="dim", title_style="bold")
+    tbl.add_column("PORT", style="bold cyan", no_wrap=True)
+    tbl.add_column("STATE", style="green")
+    tbl.add_column("SERVICE", style="yellow")
+    tbl.add_column("VERSION / BANNER", style="dim", overflow="ellipsis")
+    for port in sorted(by_port):
+        d = by_port[port]
+        tls = d.get("tls") or {}
+        banner = (d.get("banner") or "").replace("\n", " ").strip()
+        if tls.get("tls_version"):
+            extra = f"{tls['tls_version']} {tls.get('cipher', '')}".strip()
+            extra = f"{extra} | {banner}" if banner else extra
+        else:
+            extra = banner
+        tbl.add_row(f"{port}/tcp", "open", d.get("service", "unknown"), extra[:70])
+    console.print()
+    console.print(tbl)
+
+
 def pretty_report(domain: str, scan: dict, console: Console, max_shown: int) -> None:
     results = scan["results"]
     all_events: list[NormalizedEvent] = [e for evs in results.values() for e in evs]
@@ -316,9 +352,12 @@ def pretty_report(domain: str, scan: dict, console: Console, max_shown: int) -> 
     console.print()
     console.print(summary)
 
-    # Per-source detail dump
+    # Open ports — dedicated nmap-style view (port → service mapping)
+    _render_open_ports(results, console)
+
+    # Per-source detail dump (ports are shown above, so skip them here)
     for src, evs in results.items():
-        if not evs:
+        if not evs or src in ("port_scan", "port_scan_full"):
             continue
         console.print()
         console.print(f"[bold cyan]--- {src.upper()} ---[/]  [dim]{len(evs)} events[/]")
@@ -391,6 +430,111 @@ def to_json(scan: dict, domain: str) -> str:
     return json.dumps(out, indent=2, default=str)
 
 
+def render_attack_report(report: dict, console: Console) -> None:
+    """Render an OpenAI GPT-4o attack-path report to the terminal using Rich."""
+    from rich.rule import Rule
+    from rich.columns import Columns
+
+    severity_color = {
+        "Critical": "bold red",
+        "High": "red",
+        "Medium": "yellow",
+        "Low": "green",
+    }
+    likelihood_color = {
+        "High": "red",
+        "Medium": "yellow",
+        "Low": "green",
+    }
+
+    rating = report.get("attack_surface_rating", "Unknown")
+    rc = severity_color.get(rating, "white")
+
+    console.print()
+    console.print(Rule("[bold magenta] AI Attack Path Analysis [/]", style="magenta"))
+    console.print()
+    console.print(
+        f"[bold]Attack Surface Rating:[/]  [{rc}]{rating}[/]"
+    )
+    console.print()
+    console.print(Panel.fit(
+        Text.from_markup(f"[italic]{report.get('executive_summary', '')}[/]"),
+        title="[bold]Executive Summary[/]",
+        border_style="dim",
+    ))
+
+    # Quick wins
+    qw = report.get("quick_wins", [])
+    if qw:
+        console.print()
+        console.print("[bold yellow]Quick Wins — Immediate Defensive Actions[/]")
+        for win in qw:
+            console.print(f"  [yellow]▶[/] {win}")
+
+    # Infrastructure risks
+    risks = report.get("infrastructure_risks", [])
+    if risks:
+        console.print()
+        console.print("[bold red]Infrastructure Risks[/]")
+        t = Table(border_style="dim", show_header=True, header_style="bold")
+        t.add_column("Service", style="cyan")
+        t.add_column("Risk")
+        t.add_column("CVSS", justify="center", style="yellow")
+        for r in risks:
+            t.add_row(r.get("service", ""), r.get("risk", ""), r.get("cvss_estimate", "?"))
+        console.print(t)
+
+    # Attack paths
+    paths = report.get("attack_paths", [])
+    if paths:
+        console.print()
+        console.print(Rule("[bold red] Attack Paths [/]", style="red"))
+
+        for ap in paths:
+            sev = ap.get("severity", "")
+            lik = ap.get("likelihood", "")
+            sc = severity_color.get(sev, "white")
+            lc = likelihood_color.get(lik, "white")
+            ap_id = ap.get("id", "")
+            name = ap.get("name", "")
+
+            console.print()
+            console.print(
+                f"[bold]{ap_id}[/]  [bold {sc}]{name}[/]  "
+                f"[[{sc}]{sev}[/] | likelihood [{lc}]{lik}[/]]"
+            )
+            console.print(f"  [dim]{ap.get('description', '')}[/]")
+
+            evidence = ap.get("evidence", [])
+            if evidence:
+                console.print("  [bold]Evidence:[/]")
+                for ev in evidence:
+                    console.print(f"    [cyan]•[/] {ev}")
+
+            steps = ap.get("steps", [])
+            if steps:
+                console.print("  [bold]Kill Chain:[/]")
+                for i, step in enumerate(steps, 1):
+                    phase = step.get("phase", "")
+                    action = step.get("action", "")
+                    tool = step.get("tool_or_technique", "")
+                    console.print(
+                        f"    [bold]{i}.[/] [[dim]{phase}[/]] {action}"
+                        + (f"  [dim]← {tool}[/]" if tool else "")
+                    )
+
+            objective = ap.get("objective", "")
+            if objective:
+                console.print(f"  [bold]Objective:[/] [red]{objective}[/]")
+
+            defense = ap.get("defensive_recommendation", "")
+            if defense:
+                console.print(f"  [bold]Defense:[/] [green]{defense}[/]")
+
+    console.print()
+    console.print(Rule(style="magenta"))
+
+
 def to_csv(scan: dict) -> str:
     import io
     buf = io.StringIO()
@@ -448,6 +592,14 @@ def _enable_windows_ansi() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    # Load API keys from backend/.env (next to the package) and any .env in cwd.
+    # Never overrides a real environment variable if one is already set.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+        load_dotenv()
+    except Exception:
+        pass
     # On Windows, force UTF-8 to avoid legacy console crashes on box-drawing chars
     if sys.platform == "win32":
         try:
@@ -540,6 +692,40 @@ def main(argv: list[str] | None = None) -> int:
             pretty_report(args.domain, scan, console, args.max_events_shown)
             if not args.quiet:
                 console.print(f"\n[dim]Elapsed: {elapsed:.1f}s[/]")
+
+    # AI attack path analysis
+    if getattr(args, "analyze", False) and total > 0 and not args.json and not args.csv:
+        all_events: list[NormalizedEvent] = [
+            e for evs in scan["results"].values() for e in evs
+        ]
+        if not args.quiet:
+            console.print()
+        with console.status(
+            "[bold magenta]Analyzing attack surface with OpenAI GPT-4o…[/]  "
+            "[dim](this takes 15–30 seconds)[/]",
+            spinner="dots",
+        ):
+            try:
+                from chronotrace.analysis import attack_path
+                report = attack_path.analyze(
+                    args.domain,
+                    all_events,
+                    api_key=getattr(args, "openai_key", None),
+                )
+            except ImportError:
+                console.print(
+                    "\n[red][!] AI analysis needs the 'openai' package:[/] "
+                    "pip install openai"
+                )
+                return 0 if total > 0 else 1
+            except ValueError as exc:
+                console.print(f"\n[red][!] Analysis failed:[/] {exc}")
+                return 0 if total > 0 else 1
+            except Exception as exc:
+                console.print(f"\n[red][!] Analysis error:[/] {exc}")
+                return 0 if total > 0 else 1
+
+        render_attack_report(report, console)
 
     return 0 if total > 0 else 1
 
