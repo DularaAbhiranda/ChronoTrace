@@ -422,7 +422,8 @@
 
   <p class="hero-desc">
     Aggregate Wayback Machine snapshots, crt.sh Certificate Transparency logs, RDAP registration data,
-    live DNS, and seven opt-in active recon modules into one correlated chronological OSINT timeline.
+    live DNS, and seven opt-in active recon modules into one correlated chronological OSINT timeline —
+    then surface realistic attack paths with optional GPT-4o analysis.
     Available as a pip-installable CLI and a full React web interface.
   </p>
 
@@ -438,6 +439,8 @@
     <span class="badge">MIT license</span>
     <span class="badge">Kali · Ubuntu · macOS · Windows</span>
     <span class="badge">11 data sources</span>
+    <span class="badge">GPT-4o attack paths</span>
+    <span class="badge">one-command launch</span>
   </div>
 </header>
 
@@ -458,7 +461,8 @@
   <h2 class="sec-title">// LIVE TERMINAL DEMO</h2>
   <p class="sec-lede">
     A looped recording of <code>chronotrace example.com --active -y</code> — real scan output,
-    real timing. Watch source connectors complete in parallel, then review the final summary table.
+    real timing. Watch source connectors complete in parallel, review the summary table, then an
+    optional <code>--analyze</code> pass maps attack paths with GPT-4o.
   </p>
 
   <div class="terminal">
@@ -512,6 +516,11 @@
       <h4>Scan History</h4>
       <p>Every completed scan is persisted. Reload past jobs instantly without re-running them. Navigate between jobs from the history panel.</p>
     </div>
+    <div class="ui-card">
+      <div class="ui-num">07</div>
+      <h4>AI Attack-Path Analysis</h4>
+      <p>One click runs the scan through GPT-4o and renders a full report — severity-ranked attack paths, kill-chain steps, quick wins, and infrastructure risks. Paste your OpenAI key once; it stays in your browser.</p>
+    </div>
   </div>
 </section>
 
@@ -540,7 +549,7 @@
       <p>Seven Tier-2 modules behind a hard authorization gate: live HTTP probe, TLS handshake, service-aware port scan, AXFR attempt, well-known harvesting, directory probe.</p>
       <ul class="feat-list">
         <li>+ Top-20 or full 1–65535 port scan</li>
-        <li>+ Banner grab with service-aware signatures</li>
+        <li>+ Port → service mapping + banner grab</li>
         <li>+ HTTP security header audit</li>
         <li>+ ~150 high-value path probing</li>
       </ul>
@@ -567,6 +576,18 @@
         <li>+ Per-module red ACTIVE badge in web UI</li>
         <li>+ CFAA / GDPR / Computer Crime Act aware</li>
         <li>+ Scope confirmation modal in the web UI</li>
+      </ul>
+    </article>
+
+    <article class="feat">
+      <div class="feat-tag">[05]</div>
+      <h3>AI Attack-Path Analysis</h3>
+      <p>Feed the scan's findings to OpenAI GPT-4o and get back a prioritised attack-path report — grounded strictly in the evidence collected, not generic boilerplate. Bring your own key.</p>
+      <ul class="feat-list">
+        <li>+ Ranked paths with severity + likelihood</li>
+        <li>+ Kill-chain steps, evidence, remediation</li>
+        <li>+ Quick wins + infrastructure risk list</li>
+        <li>+ chronotrace target.com --analyze</li>
       </ul>
     </article>
   </div>
@@ -663,12 +684,25 @@
 <section id="install" class="section">
   <h2 class="sec-title">// INSTALL</h2>
   <p class="sec-lede">
-    One-line install via pipx. Puts <code>chronotrace</code> in your <code>$PATH</code> alongside nmap, sqlmap, and hydra.
+    Two ways in: a one-command launcher that sets everything up for you, or a pipx CLI install
+    that puts <code>chronotrace</code> in your <code>$PATH</code> alongside nmap, sqlmap, and hydra.
   </p>
 
   <div class="install-blk">
     <div class="install-hdr">
-      <span class="install-os">kali · ubuntu · macos</span>
+      <span class="install-os">fastest — clone &amp; run</span>
+      <button class="copy-btn" data-target="cmd-quick">copy</button>
+    </div>
+    <pre class="install-code" id="cmd-quick"><span class="cm"># one command: builds the venv + deps, compiles the UI, then launches</span>
+<span class="p">$</span> git clone https://github.com/DularaAbhiranda/ChronoTrace.git
+<span class="p">$</span> cd ChronoTrace
+<span class="p">$</span> python run.py                  <span class="cm"># web GUI — opens your browser</span>
+<span class="p">$</span> ./chronotrace.sh example.com   <span class="cm"># or the CLI (Linux/macOS)</span></pre>
+  </div>
+
+  <div class="install-blk">
+    <div class="install-hdr">
+      <span class="install-os">cli install — kali · ubuntu · macos</span>
       <button class="copy-btn" data-target="cmd-unix">copy</button>
     </div>
     <pre class="install-code" id="cmd-unix"><span class="cm"># clone, install, verify</span>
@@ -678,7 +712,7 @@
 <span class="p">$</span> cd ChronoTrace
 <span class="p">$</span> pipx install ./backend
 <span class="p">$</span> chronotrace --version
-<span class="out">chronotrace 1.0.0</span></pre>
+<span class="out">chronotrace 1.0.1</span></pre>
   </div>
 
   <div class="install-blk">
@@ -879,6 +913,16 @@ const SCRIPT = [
   { d:80,   h:'<span class="warn">╰────────────────────────────────────╯</span>' },
   { d:200,  h:'' },
   { d:80,   h:'<span class="info">Elapsed: 85.8s</span>' },
+  { d:1200, h:'' },
+  { d:600,  h:'<span class="ok">$</span> <span class="hi">chronotrace example.com --analyze</span>' },
+  { d:1600, h:'<span class="info">⠋ Analyzing attack surface with OpenAI GPT-4o…</span>' },
+  { d:300,  h:'' },
+  { d:120,  h:'<span class="warn">  Attack Surface Rating: MEDIUM</span>' },
+  { d:140,  h:'<span class="hi">  ▸ Forgotten staging subdomain exposes a login portal</span>  <span class="err">[High]</span>' },
+  { d:140,  h:'<span class="hi">  ▸ Missing HSTS header enables an SSL-strip downgrade</span>  <span class="warn">[Medium]</span>' },
+  { d:140,  h:'<span class="hi">  ▸ Wayback shows an old /admin path still resolving</span>  <span class="warn">[Medium]</span>' },
+  { d:300,  h:'' },
+  { d:80,   h:'<span class="ok">[+]</span> 3 attack paths · 2 quick wins · full report rendered' },
   { d:0,    h:'<span class="ok">$</span> <span class="tcur"></span>' },
 ];
 
