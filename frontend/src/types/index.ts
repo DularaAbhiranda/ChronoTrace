@@ -156,3 +156,45 @@ export const EVENT_TYPE_LABELS: Record<EventType, string> = {
 }
 
 export const API_BASE = '/api'
+
+// ── AI attack-path analysis (GPT-4o) ──
+export type RiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
+
+export interface AttackPathStep {
+  phase: string
+  action: string
+  tool_or_technique: string
+}
+
+export interface AttackPath {
+  id: string
+  name: string
+  description: string
+  severity: RiskLevel
+  likelihood: 'High' | 'Medium' | 'Low'
+  evidence: string[]
+  steps: AttackPathStep[]
+  objective: string
+  defensive_recommendation: string
+}
+
+export interface InfrastructureRisk {
+  service: string
+  risk: string
+  cvss_estimate: string
+}
+
+export interface AttackPathReport {
+  executive_summary: string
+  attack_surface_rating: RiskLevel
+  attack_paths: AttackPath[]
+  quick_wins: string[]
+  infrastructure_risks: InfrastructureRisk[]
+}
+
+export const RISK_COLORS: Record<RiskLevel, string> = {
+  Critical: '#f85149',
+  High: '#ff7b72',
+  Medium: '#d29922',
+  Low: '#3fb950',
+}

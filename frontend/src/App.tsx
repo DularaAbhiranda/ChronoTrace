@@ -11,6 +11,7 @@ import { ExportPanel } from './components/ExportPanel'
 import { ApiKeyVault } from './components/ApiKeyVault'
 import { HistoryPanel } from './components/HistoryPanel'
 import { CompareView } from './components/CompareView'
+import { AttackPathPanel } from './components/AttackPathPanel'
 import { useScan } from './hooks/useScan'
 import type { NormalizedEvent, Filters, EventSource } from './types'
 import {
@@ -212,6 +213,9 @@ export default function App() {
               </div>
               <Timeline events={filteredEvents} onSelectEvent={setSelectedEvent} />
             </div>
+
+            {/* AI attack-path analysis */}
+            <AttackPathPanel jobId={job.job_id} />
 
             {/* Bottom grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
